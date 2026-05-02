@@ -134,7 +134,7 @@ const role = localStorage.getItem("role");
 const email = localStorage.getItem("email");
 const token = localStorage.getItem("token");
 
-const API = "http://localhost:5000/api/tasks";
+const API = "https://captivating-simplicity-production-ebd2.up.railway.app/api/tasks";
 
 document.getElementById("roleText").innerText = "Role: " + role;
 
@@ -207,7 +207,7 @@ async function addTask() {
       return;
     }
 
-    const res = await fetch("http://localhost:5000/api/tasks", {
+    const res = await fetch("https://captivating-simplicity-production-ebd2.up.railway.app/api/tasks", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
