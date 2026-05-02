@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f1f5f9;
+    }
+
+    .sidebar {
+      width: 230px;
+      height: 100vh;
+      background: #0f172a;
+      color: white;
+      position: fixed;
+      padding: 20px;
+    }
+
+    .sidebar h2 {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .sidebar button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      background: #1e293b;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .main {
+      margin-left: 250px;
+      padding: 30px;
+    }
+
+    .task-box {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+    }
+
+    input {
+      padding: 10px;
+      margin: 8px 5px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      width: 200px;
+    }
+
+    button.add {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .task {
+      background: #f8fafc;
+      padding: 15px;
+      margin-top: 10px;
+      border-radius: 10px;
+      border-left: 5px solid #2563eb;
+    }
+
+    .completed {
+      border-left: 5px solid #22c55e;
+    }
+
+    .btn {
+      margin-top: 8px;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .done {
+      background: #22c55e;
+      color: white;
+    }
+
+  </style>
+</head>
+
+<body>
+
+<div class="sidebar">
+  <h2>🚀 TaskFlow</h2>
+  <button onclick="location.reload()">Dashboard</button>
+  <button onclick="logout()">Logout</button>
+</div>
+
+<div class="main">
+
+  <h2>Dashboard</h2>
+  <div id="roleText"></div>
+
+  <div class="task-box">
+
+    <!-- ADMIN ADD TASK -->
+    <div id="adminBox">
+      <h3>Add Task (Admin Only)</h3>
+
+      <input type="text" id="taskTitle" placeholder="Task Title">
+      <input type="text" id="assignedEmail" placeholder="Member Email">
+
+      <button class="add" onclick="addTask()">Add Task</button>
+    </div>
+
+    <h3>Tasks</h3>
+    <div id="taskList"></div>
+
+  </div>
+</div>
+
+<script src="app.js"></script>
+
+<script>
+// =======================
+// CONFIG
+// =======================
+const role = localStorage.getItem("role");
+const email = localStorage.getItem("email");
+const token = localStorage.getItem("token");
+
+const API = "http://localhost:5000/api/tasks";
+
+document.getElementById("roleText").innerText = "Role: " + role;
+
+// =======================
+// LOAD TASKS
+// =======================
+async function loadTasks() {
+  const res = await fetch(`${API}?email=${email}&role=${role}`, {
+    headers: { "Authorization": token }
+  });
+
+  const tasks = await res.json();
+
+  const list = document.getElementById("taskList");
+  list.innerHTML = "";
+
+  tasks.forEach(t => {
+    const div = document.createElement("div");
+    div.className = "task " + (t.status === "completed" ? "completed" : "");
+
+    div.innerHTML = `
+      <b>${t.title}</b><br>
+      <small>${t.assignedEmail}</small><br>
+      <small>Status: ${t.status}</small><br>
+
+      ${role !== "admin" ? `
+        <button class="btn done" onclick="toggleStatus('${t._id}', '${t.status}')">
+          Toggle Status
+        </button>
+      ` : ""}
+    `;
+
+    list.appendChild(div);
+  });
+}
+
+// =======================
+// TOGGLE STATUS
+// =======================
+async function toggleStatus(id, currentStatus) {
+  const newStatus = currentStatus === "completed" ? "pending" : "completed";
+
+  await fetch(`${API}/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": token
+    },
+    body: JSON.stringify({ status: newStatus })
+  });
+
+  loadTasks();
+}
+
+// =======================
+// ADD TASK (ADMIN ONLY) ✅ FIXED
+// =======================
+async function addTask() {
+  try {
+    if (role !== "admin") {
+      alert("Admin only");
+      return;
+    }
+
+    const title = document.getElementById("taskTitle").value;
+    const assignedEmail = document.getElementById("assignedEmail").value;
+
+    if (!title || !assignedEmail) {
+      alert("Fill all fields");
+      return;
+    }
+
+    const res = await fetch("http://localhost:5000/api/tasks", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": token
+      },
+      body: JSON.stringify({
+        title,
+        assignedEmail,
+        status: "pending"
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.msg || "Failed to add task");
+      return;
+    }
+
+    alert("Task added successfully");
+
+    document.getElementById("taskTitle").value = "";
+    document.getElementById("assignedEmail").value = "";
+
+    loadTasks();
+
+  } catch (err) {
+    console.error(err);
+    alert("Server error");
+  }
+}
+
+// =======================
+// INIT
+// =======================
+loadTasks();
+
+// =======================
+// ADMIN UI CONTROL
+// =======================
+window.addEventListener("DOMContentLoaded", () => {
+  if (!token) {
+    window.location.href = "index.html";
+    return;
+  }
+
+  if (role !== "admin") {
+    const adminBox = document.getElementById("adminBox");
+    if (adminBox) adminBox.style.display = "none";
+  }
+});
+
+// =======================
+// LOGOUT
+// =======================
+function logout() {
+  localStorage.clear();
+  window.location.href = "index.html";
+}
+</script>
+
+</body>
+</html>
